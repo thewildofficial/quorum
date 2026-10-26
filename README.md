@@ -61,7 +61,7 @@ npm run install:all
 npm run build
 npm run seed    # optional: synthetic demo organizer, members and events
 npm start       # http://localhost:4000
-npm test        # 20 unit + integration tests
+npm test        # 14 unit + integration tests
 ```
 
 Browsing works without login. To try RSVP/sign-in locally, configure Google OAuth (below);

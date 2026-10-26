@@ -14,7 +14,5 @@ services:
         value: production
       - key: SEED_ON_EMPTY
         value: "1"
-      - key: SEED_EMAIL
-        value: demo@deliberate.local
-      - key: SEED_PASSWORD
-        value: demo-password-123
+      # Quorum seed users cannot log in (Google OAuth required); browsing works publicly.
+      # Set GOOGLE_CLIENT_ID/SECRET in the Render dashboard - never commit them.
