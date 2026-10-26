@@ -1,0 +1,20 @@
+# One-click Render blueprint. Free web service tier works for DEMO/EVALUATION ONLY:
+# Render's free filesystem is ephemeral, so the SQLite file resets on restart/redeploy.
+# SEED_ON_EMPTY=1 re-creates the synthetic demo account and sample decisions on every
+# cold start, so evaluators always see a working app. See DEPLOYMENT.md.
+services:
+  - type: web
+    name: deliberate
+    runtime: node
+    plan: free
+    buildCommand: npm install --no-audit --no-fund && npm --prefix client install --no-audit --no-fund && npm --prefix client run build
+    startCommand: node server/src/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SEED_ON_EMPTY
+        value: "1"
+      - key: SEED_EMAIL
+        value: demo@deliberate.local
+      - key: SEED_PASSWORD
+        value: demo-password-123

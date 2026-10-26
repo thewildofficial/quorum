@@ -1,0 +1,19 @@
+{
+  "name": "quorum",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Quorum - Luma-style event management for Reinforce (SST): discovery, RSVP capacity, waitlist promotion, Google sign-in restricted to SST accounts.",
+  "scripts": {
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node --watch server/src/index.js",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "start": "NODE_ENV=production node server/src/index.js",
+    "seed": "node server/src/seed.js",
+    "test": "npm --prefix server test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
