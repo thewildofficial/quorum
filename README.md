@@ -78,6 +78,10 @@ Sign-in uses Google OAuth restricted to the SST workspace domain:
 3. Copy `.env.example` values into your environment: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
    `ALLOWED_GOOGLE_DOMAIN` (default `sst.scaler.com`), and `ORGANIZER_EMAILS` (comma-separated
    list of SST emails who may publish events; everyone else is a member).
+   To use the seeded organizer console locally, include
+   `ORGANIZER_EMAILS=organizer@seed.quorum.local`. Organizer authority is this
+   allowlist, checked on every request - removing an email revokes access
+   immediately, even for sessions issued earlier.
 
 See `.env.example`. Secrets stay in the environment; nothing is committed.
 

@@ -104,6 +104,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.0
 .badge {
   display: inline-block; padding: 2px 10px; border-radius: 999px;
   font-size: 12px; font-weight: 600; text-transform: capitalize;
+  white-space: nowrap; flex: none;
 }
 .badge.draft { background: var(--brand-wash); color: var(--warn); border: 1px solid var(--brand-line); }
 .badge.decided { background: var(--surface-3); color: var(--ink-2); border: 1px solid var(--line-2); }
@@ -161,6 +162,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.0
   .topbar nav a { font-size: 13px; }
   .topbar nav span { display: none; } /* logged-in name yields to the nav on phones */
   .btn { padding: 7px 12px; }
+  .badge { padding: 2px 8px; font-size: 11px; }
   .page { padding: 22px 14px 56px; }
   .page > h1 { font-size: 27px; }
 }
