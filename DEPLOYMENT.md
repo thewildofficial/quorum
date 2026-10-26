@@ -6,6 +6,9 @@ runs anywhere a Node process and a Postgres database are available.
 
 ## Recommended free persistent route: Render web service + Neon Postgres
 
+This project is deployed this way at **https://quorum-wu5r.onrender.com** (service `quorum`,
+Singapore region, free plan; database: Neon free Postgres, Singapore).
+
 This is the route this project uses. Both tiers are free as of October 2026:
 
 - **Render free web services** (`plan: free`, already configured in

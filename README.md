@@ -1,6 +1,9 @@
 # Quorum - Reinforce Events
 
 **Luma-style event management for Reinforce, the AI/ML club at Scaler School of Technology.**
+
+**Live deployment: https://quorum-wu5r.onrender.com** (Render free tier - the first load after
+~15 idle minutes can take up to a minute while the instance wakes).
 Members discover talks, workshops and build nights; organizers publish events with capacity
 limits; RSVPs overflow onto an automatic waitlist.
 
@@ -86,6 +89,9 @@ Sign-in uses Google OAuth restricted to the SST workspace domain:
 See `.env.example`. Secrets stay in the environment; nothing is committed.
 
 ## Deployment
+
+Deployed at https://quorum-wu5r.onrender.com (Render free web service, Singapore region, Docker
+build from `master`) with Neon free Postgres (Singapore) as the persistent database.
 
 Single Node process backed by Postgres (`DATABASE_URL`) - see `DEPLOYMENT.md` for the free
 persistent route (Render free web + Neon free Postgres) and its caveats, plus `render.yaml`/`Dockerfile`
