@@ -61,7 +61,7 @@ npm run install:all
 npm run build
 npm run seed    # optional: synthetic demo organizer, members and events
 npm start       # http://localhost:4000
-npm test        # 14 unit + integration tests
+npm test        # 15 unit + integration tests
 ```
 
 Browsing works without login. To try RSVP/sign-in locally, configure Google OAuth (below);
@@ -86,6 +86,13 @@ See `.env.example`. Secrets stay in the environment; nothing is committed.
 Single-process app with embedded SQLite - see `DEPLOYMENT.md` for the free-tier options and the
 SQLite persistence caveat, and `render.yaml`/`Dockerfile` for one-command routes. Deployment is a
 deliberate choice the project owner makes; nothing here deploys itself.
+
+## Design
+
+The visual language is pulled from the club's dashboard (Reinforce-Student-Dashboard,
+`web/app/globals.css`): the gold brand colour sampled from the club logo (#E5B731) on
+near-black surfaces, Instrument Serif display type and Plus Jakarta Sans body. Only the
+styling is shared; all event/RSVP logic here is new.
 
 ## Relationship to the Reinforce platform
 

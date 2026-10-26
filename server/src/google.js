@@ -53,7 +53,12 @@ export async function verifyIdToken(idToken) {
  * the allowed domain. Tokens without `hd` are rejected even if the email
  * looks right - a suffix match is not proof of workspace membership.
  */
+const GOOGLE_ISSUERS = new Set(['accounts.google.com', 'https://accounts.google.com']);
+
 export function enforceDomain(claims) {
+  if (!GOOGLE_ISSUERS.has(claims.iss)) {
+    throw unauthorized('Token was not issued by Google');
+  }
   if (claims.email_verified !== 'true' && claims.email_verified !== true) {
     throw unauthorized('Google account email is not verified');
   }

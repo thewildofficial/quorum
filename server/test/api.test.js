@@ -25,7 +25,7 @@ async function login(email, name = 'Test User') {
   const r1 = await fetch(base + '/api/auth/google', { redirect: 'manual' });
   const location = r1.headers.get('location');
   const state = new URL(location).searchParams.get('state');
-  const code = Buffer.from(JSON.stringify({ sub: 'sub-' + email, email, name, email_verified: 'true', hd: 'sst.scaler.com', aud: 'test-client-id' })).toString('base64url');
+  const code = Buffer.from(JSON.stringify({ sub: 'sub-' + email, email, name, email_verified: 'true', iss: 'https://accounts.google.com', hd: 'sst.scaler.com', aud: 'test-client-id' })).toString('base64url');
   const r2 = await fetch(base + `/api/auth/google/callback?code=${code}&state=${state}`, { redirect: 'manual' });
   assert.equal(r2.status, 302);
   cookies[email] = r2.headers.get('set-cookie').split(';')[0];
@@ -55,9 +55,18 @@ let eventId;
 test('wrong-domain sign-in is rejected even with a plausible email', async () => {
   const r1 = await fetch(base + '/api/auth/google', { redirect: 'manual' });
   const state = new URL(r1.headers.get('location')).searchParams.get('state');
-  const code = Buffer.from(JSON.stringify({ sub: 'sub-out', email: 'someone@gmail.com', name: 'Out', email_verified: 'true', hd: 'gmail.com', aud: 'test-client-id' })).toString('base64url');
+  const code = Buffer.from(JSON.stringify({ sub: 'sub-out', email: 'someone@gmail.com', name: 'Out', email_verified: 'true', iss: 'https://accounts.google.com', hd: 'gmail.com', aud: 'test-client-id' })).toString('base64url');
   const r2 = await fetch(base + `/api/auth/google/callback?code=${code}&state=${state}`, { redirect: 'manual' });
   // error handler renders JSON, not a session
+  assert.notEqual(r2.status, 302);
+  assert.equal(r2.headers.get('set-cookie'), null);
+});
+
+test('token from a non-Google issuer is rejected even with the right domain', async () => {
+  const r1 = await fetch(base + '/api/auth/google', { redirect: 'manual' });
+  const state = new URL(r1.headers.get('location')).searchParams.get('state');
+  const code = Buffer.from(JSON.stringify({ sub: 'sub-evil', email: 'prof@sst.scaler.com', name: 'Evil', email_verified: 'true', iss: 'https://evil.example.com', hd: 'sst.scaler.com', aud: 'test-client-id' })).toString('base64url');
+  const r2 = await fetch(base + `/api/auth/google/callback?code=${code}&state=${state}`, { redirect: 'manual' });
   assert.notEqual(r2.status, 302);
   assert.equal(r2.headers.get('set-cookie'), null);
 });
