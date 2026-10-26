@@ -1,7 +1,6 @@
 export function Spinner() {
   return <div className="spinner" role="status" aria-label="Loading" />;
 }
-
 export function ErrorBox({ error, onRetry }) {
   if (!error) return null;
   return (
@@ -11,7 +10,6 @@ export function ErrorBox({ error, onRetry }) {
     </div>
   );
 }
-
 export function Empty({ title, children }) {
   return (
     <div className="empty">
@@ -20,8 +18,13 @@ export function Empty({ title, children }) {
     </div>
   );
 }
-
-const STATUS_LABELS = { draft: 'draft', decided: 'decided', closed: 'reviewed' };
-export function StatusBadge({ status }) {
-  return <span className={`badge ${status}`}>{STATUS_LABELS[status] || status}</span>;
+export function formatWhen(iso) {
+  const d = new Date(iso.replace(' ', 'T') + 'Z');
+  return d.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+export function SpotsBadge({ event }) {
+  if (event.status === 'cancelled') return <span className="badge closed">cancelled</span>;
+  if (event.capacity === null) return <span className="badge decided">open capacity</span>;
+  if (event.spotsLeft > 0) return <span className="badge closed">{event.spotsLeft} spot{event.spotsLeft > 1 ? 's' : ''} left</span>;
+  return <span className="badge draft">waitlist open</span>;
 }

@@ -1,134 +1,101 @@
-# Deliberate
+# Quorum - Reinforce Events
 
-**A decision journal that holds your reasoning accountable.** Deliberate helps you compare real
-options against weighted criteria, shows you how fragile the resulting ranking is, records a
-falsifiable forecast when you commit, and later scores how calibrated your confidence actually was.
+**Luma-style event management for Reinforce, the AI/ML club at Scaler School of Technology.**
+Members discover talks, workshops and build nights; organizers publish events with capacity
+limits; RSVPs overflow onto an automatic waitlist.
 
-- Problem: people make consequential choices by vibes, then rewrite history afterwards. The
-  reasoning that produced a decision is usually gone by the time the outcome arrives.
-- Target users: students, researchers, and anyone making repeated judgment calls (projects to
-  prioritise, roles to take, tools to buy) who wants feedback on the *quality of their judgment*,
-  not just on outcomes.
-- Solution: a small web app that forces the full loop - frame, weigh, score, stress-test, commit
-  with a prediction, review against an explicit success criterion.
+- Problem: club events get planned in chat threads. Nobody knows how many people are actually
+  coming, capped workshops overbook, and cancellations free seats nobody hears about.
+- Target users: Reinforce members (SST students) and club organizers.
+- Solution: a small event platform - public event pages, Google sign-in restricted to SST
+  accounts, RSVP with capacity + automatic waitlist promotion, and an organizer console.
 
 ## Key features
 
-1. **Decision builder** - create a decision with 2-10 options and 2-10 weighted criteria, then
-   score every option 0-10 against every criterion in a matrix editor.
-2. **Weighted ranking** - weights are normalised, every option gets a transparent weighted score,
-   and the margin between the leader and the runner-up is shown explicitly.
-3. **Sensitivity analysis** - each criterion's weight is varied between 0.5x and 2x (one at a time)
-   to show how the leader's margin moves, whether the winner flips, and if so at exactly which
-   weight multiplier (found by bisection on the continuous margin function). Verdicts are honestly
-   scoped: "robust in tested range" never claims global optimality.
-4. **Forecast commit** - deciding requires a probability, an observable success criterion, and a
-   review date. Options, criteria, and scores freeze at that moment so the forecast stays honest.
-5. **Outcome review & calibration** - record what actually happened; the app computes a Brier score
-   per decision and a binned calibration curve across all reviewed decisions, so you can see whether
-   your 70% calls really happen 70% of the time.
-
-Supporting functionality: email/password accounts with per-user data isolation, search and status
-filtering over decisions, loading/empty/error states on every screen, and seeded synthetic demo data.
+1. **Event discovery** - public, Luma-style listing with search and upcoming/past filters. No
+   account needed to browse.
+2. **Google sign-in restricted to SST** - OAuth authorization-code flow; the ID token is verified
+   server-side and the `hd` (hosted domain) claim must equal `sst.scaler.com`. The check runs in
+   the login callback so it cannot be bypassed by client tricks; tokens without `hd` are rejected
+   even when the email looks right.
+3. **RSVP with capacity** - one transaction checks remaining seats and writes the RSVP, so two
+   people cannot take the last seat at once. Full events hand out waitlist positions instead.
+4. **Automatic waitlist promotion** - when a "going" RSVP is cancelled or the organizer raises
+   capacity, the waitlist head is promoted in the same transaction, in position order.
+5. **Organizer console** - publish events with validation (end after start, no past starts),
+   edit capacity (never below the current going count), see the full attendee/waitlist list,
+   cancel an event (cancels all RSVPs).
 
 ## Tech stack
 
-| Layer | Choice | Why |
-| --- | --- | --- |
-| Frontend | React 18 + Vite, React Router | Component model fits the matrix editor and live analysis; fast dev loop |
-| Charts | Hand-rolled SVG/CSS | Tornado and calibration plots are small, bespoke, and dependency-free |
-| Backend | Node 22 + Express 4 | Simple REST API, single process serves API and built client |
-| Database | SQLite via better-sqlite3 | Zero-config persistence; runs identically for every evaluator; transactional writes |
-| Auth | Session cookies (httpOnly) + bcryptjs | No third-party dependency; passwords never stored in plain text |
-| Tests | node:test (built-in) | Unit tests for domain logic + full API integration tests |
+React 18 + Vite client; Node 22 + Express API; SQLite (better-sqlite3) with WAL and foreign keys;
+session-cookie auth after Google OAuth (no third-party auth SDK); hand-built CSS. No external
+services besides Google sign-in; no API keys to leak beyond the OAuth client configuration.
 
 ## Architecture
 
 ```
-client/                 React SPA (Vite build, served statically in production)
-  src/pages/            Login, Dashboard, NewDecision wizard, DecisionDetail, Analytics
-  src/components/       RankingBars, TornadoChart, CalibrationChart, shared UI
-server/
-  src/domain/           Pure, unit-tested logic: scoring, sensitivity, calibration
-  src/services/         Decision service: ownership checks, state machine, persistence
-  src/routes/           REST endpoints with input validation
-  src/middleware/       Session auth, validators, central error handler
-  data/                 SQLite file (git-ignored, created on first run)
+server/src/domain/waitlist.js    Pure capacity/waitlist rules (unit-tested)
+server/src/google.js             OAuth exchange + token verification + domain policy
+server/src/services/             Event service: transactions, promotion, authorization
+server/src/routes/               REST endpoints with validation
+client/src/pages/                Discovery, event detail, My RSVPs, create event, login
 ```
 
-Key engineering decisions:
+Engineering decisions worth a look:
 
-- **Domain logic is pure and separate** (`server/src/domain/`). The scoring, sensitivity, and
-  calibration modules have no I/O and are unit-tested directly; routes are a thin shell.
-- **Guarded state machine**: `draft -> decided -> closed`. Editing after deciding is rejected
-  (409), deciding without a complete matrix is rejected (422), outcomes can only follow a decision.
-  This is what makes the calibration data trustworthy.
-- **Authorisation on every object**: all decision queries are scoped to the authenticated user;
-  cross-user access returns 403.
-- **Transactions** for multi-write operations (decide, outcome, score batches) so partial writes
-  cannot corrupt the workflow state.
-
-### The sensitivity math
-
-With normalised weights `w_i` and scores `s_i`, an option's total is `S = Σ w_i · s_i`. Scaling one
-criterion's weight by a multiplier `m` and renormalising makes the leader's margin a continuous
-function of `m`. A sign change between `m = 1` and the range edge brackets the flip point, which
-bisection then locates to ~0.001 precision. The verdict "robust" means no flip occurred for any
-single weight inside `m ∈ [0.5, 2]` - a local statement, advertised as such in the UI.
+- **Race-safe RSVP**: seat counting and insertion happen inside one SQLite transaction, so a
+  last seat cannot be sold twice.
+- **Promotion in the same transaction** as the cancellation/capacity edit that triggers it -
+  the waitlist can never be skipped by a concurrent RSVP.
+- **Domain rules are pure** (`domain/waitlist.js`) and tested separately from the API.
+- **Authorization everywhere**: attendees list and edits are organizer-only; the organizer
+  cannot RSVP to their own event; RSVPs are per-user idempotent (unique constraint + 409).
 
 ## Local setup
 
 Requires Node.js 20+.
 
 ```bash
-npm run install:all   # installs root, server, and client dependencies
-npm run build         # builds the React client into client/dist
-npm run seed          # optional: synthetic demo account (demo@deliberate.local / demo-password-123)
-npm start             # serves the app on http://localhost:4000
+npm run install:all
+npm run build
+npm run seed    # optional: synthetic demo organizer, members and events
+npm start       # http://localhost:4000
+npm test        # 20 unit + integration tests
 ```
 
-Development mode (API on :4000, Vite dev server with proxy on :5173):
+Browsing works without login. To try RSVP/sign-in locally, configure Google OAuth (below);
+without it, the app still runs and the login page explains the requirement.
 
-```bash
-npm run dev
-```
+## Google OAuth configuration (required for sign-in)
 
-Run the tests:
+Sign-in uses Google OAuth restricted to the SST workspace domain:
 
-```bash
-npm test              # 16 unit + integration tests (node:test, no external services)
-```
+1. In Google Cloud Console create a project, configure the OAuth consent screen, and create an
+   "OAuth 2.0 Client ID" of type **Web application**.
+2. Add authorized redirect URI: `http://localhost:4000/api/auth/google/callback` (and the
+   deployed equivalent later).
+3. Copy `.env.example` values into your environment: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+   `ALLOWED_GOOGLE_DOMAIN` (default `sst.scaler.com`), and `ORGANIZER_EMAILS` (comma-separated
+   list of SST emails who may publish events; everyone else is a member).
 
-## Environment variables
-
-See `.env.example`. Everything has a safe local default; there are no third-party API keys to
-leak by design.
-
-## Docker
-
-```bash
-docker build -t deliberate .
-docker run -p 4000:4000 -e SEED=1 -v deliberate-data:/app/data deliberate
-```
-
-The named volume keeps the SQLite database across container restarts.
+See `.env.example`. Secrets stay in the environment; nothing is committed.
 
 ## Deployment
 
-Any Node host that supports persistent disk works (the SQLite file must survive restarts). The
-repository ships a production Dockerfile; on platforms with ephemeral filesystems, attach a
-persistent volume mounted at `/app/data`. See `DEPLOYMENT.md` for a concrete free-tier walkthrough.
+Single-process app with embedded SQLite - see `DEPLOYMENT.md` for the free-tier options and the
+SQLite persistence caveat, and `render.yaml`/`Dockerfile` for one-command routes. Deployment is a
+deliberate choice the project owner makes; nothing here deploys itself.
 
-## Demo video
+## Relationship to the Reinforce platform
 
-See `DEMO.md` for the 3-5 minute script that walks the rubric-relevant workflows.
+Quorum is a standalone app designed to complement the club's existing platform
+(Reinforce-SST/Reinforce-Student-Dashboard, built by the club team). It shares no code with that
+repo and does not modify it; its event/RSVP model is designed so it could later be integrated or
+linked from the dashboard.
 
 ## Project status and AI usage
 
-Built as an end-term project. AI assistance was used during development for code generation and
-review, as permitted by the course guidelines; all workflows were tested and verified end to end
-(see `npm test` and the screenshots in `docs/`).
-
-## Data
-
-All seeded content is synthetic sample data about fictional decisions. No real personal data.
+Built as an end-term project. AI assistance was used for code generation and review, as permitted
+by the course guidelines; every workflow was verified end to end (see `npm test` and `docs/`).
+All seeded people and events are synthetic.

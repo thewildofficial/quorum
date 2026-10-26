@@ -1,10 +1,10 @@
-import { Routes, Route, Navigate, Link, NavLink, useNavigate } from 'react-router-dom';
+import { Routes, Route, Link, NavLink, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
+import EventsPage from './pages/EventsPage.jsx';
+import EventDetailPage from './pages/EventDetailPage.jsx';
+import MyRsvpsPage from './pages/MyRsvpsPage.jsx';
+import NewEventPage from './pages/NewEventPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-import DashboardPage from './pages/DashboardPage.jsx';
-import NewDecisionPage from './pages/NewDecisionPage.jsx';
-import DecisionDetailPage from './pages/DecisionDetailPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
 
 function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -12,14 +12,19 @@ function Layout({ children }) {
   return (
     <>
       <header className="topbar">
-        <Link to="/" className="brand">Delib<span>erate</span></Link>
+        <Link to="/" className="brand">Quo<span>rum</span> <em style={{ fontStyle: 'normal', fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>Reinforce events</em></Link>
         <nav>
-          <NavLink to="/" end>Decisions</NavLink>
-          <NavLink to="/analytics">Calibration</NavLink>
-          <span style={{ color: 'var(--muted)', fontSize: 14 }}>{user?.displayName}</span>
-          <button className="btn small" onClick={async () => { await logout(); navigate('/login'); }}>
-            Log out
-          </button>
+          <NavLink to="/" end>Events</NavLink>
+          {user && <NavLink to="/mine">My RSVPs</NavLink>}
+          {user?.role === 'organizer' && <NavLink to="/new">+ Create event</NavLink>}
+          {user ? (
+            <>
+              <span style={{ color: 'var(--muted)', fontSize: 14 }}>{user.displayName}</span>
+              <button className="btn small" onClick={async () => { await logout(); navigate('/'); }}>Log out</button>
+            </>
+          ) : (
+            <NavLink to="/login">Log in</NavLink>
+          )}
         </nav>
       </header>
       <main className="page">{children}</main>
@@ -27,24 +32,19 @@ function Layout({ children }) {
   );
 }
 
-function Protected({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="spinner" />;
-  if (!user) return <Navigate to="/login" replace />;
-  return <Layout>{children}</Layout>;
-}
-
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<Protected><DashboardPage /></Protected>} />
-        <Route path="/decisions/new" element={<Protected><NewDecisionPage /></Protected>} />
-        <Route path="/decisions/:id" element={<Protected><DecisionDetailPage /></Protected>} />
-        <Route path="/analytics" element={<Protected><AnalyticsPage /></Protected>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<EventsPage />} />
+          <Route path="/events/:id" element={<EventDetailPage />} />
+          <Route path="/mine" element={<MyRsvpsPage />} />
+          <Route path="/new" element={<NewEventPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<EventsPage />} />
+        </Routes>
+      </Layout>
     </AuthProvider>
   );
 }

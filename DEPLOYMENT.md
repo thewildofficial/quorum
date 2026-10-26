@@ -18,7 +18,7 @@ demo this is fine. For real use, it is not.
 
 Steps: push the repo to GitHub, in Render choose New > Blueprint and point it at the repo, deploy.
 Afterwards open the URL in an incognito window to confirm it loads (the app's own login page is
-expected). Demo login: demo@deliberate.local / demo-password-123 (change `SEED_EMAIL`/`SEED_PASSWORD`
+expected). Demo login: demo@quorum.local / demo-password-123 (change `SEED_EMAIL`/`SEED_PASSWORD`
 in render.yaml if you want different demo credentials).
 
 ## Option B - Oracle Cloud Always Free VM (real persistence, $0, card needed for identity check)
@@ -28,8 +28,8 @@ Oracle's Always Free tier includes ARM VMs that stay free
 Signup asks for a credit/debit card for identity verification. On the VM:
 
 ```bash
-docker build -t deliberate .
-docker run -d --restart unless-stopped -p 80:4000 -v deliberate-data:/app/data deliberate
+docker build -t quorum .
+docker run -d --restart unless-stopped -p 80:4000 -v quorum-data:/app/data quorum
 ```
 
 The named volume keeps the SQLite database across restarts and redeploys. Do NOT set SEED_ON_EMPTY

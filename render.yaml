@@ -4,7 +4,7 @@
 # cold start, so evaluators always see a working app. See DEPLOYMENT.md.
 services:
   - type: web
-    name: deliberate
+    name: quorum
     runtime: node
     plan: free
     buildCommand: npm install --no-audit --no-fund && npm --prefix client install --no-audit --no-fund && npm --prefix client run build

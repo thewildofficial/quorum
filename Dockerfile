@@ -20,7 +20,7 @@ COPY server/ server/
 COPY --from=client-build /app/client/dist client/dist
 COPY package.json ./
 RUN mkdir -p /app/data
-ENV PORT=4000 DATABASE_PATH=/app/data/deliberate.db
+ENV PORT=4000 DATABASE_PATH=/app/data/quorum.db
 EXPOSE 4000
 # Optional: seed the demo account on first run with SEED=1 docker run -e SEED=1 ...
 CMD ["sh", "-c", "if [ \"$SEED\" = \"1\" ]; then node server/src/seed.js; fi; node server/src/index.js"]
