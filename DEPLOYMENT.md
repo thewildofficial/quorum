@@ -1,70 +1,67 @@
-# Deployment notes
+# Deployment
 
-The app is a single Node process with an embedded SQLite file. Pick based on what the deployment
-is for. Facts below verified against vendor docs on 2026-10-26; links included.
+Quorum is a single Node process (Express API + built React client) backed by
+Postgres. The server reads its connection string from `DATABASE_URL`, so it
+runs anywhere a Node process and a Postgres database are available.
 
-## Option A - Render free tier (demo/evaluation deployment, no card needed)
+## Recommended free persistent route: Render web service + Neon Postgres
 
-Render's free web services have an **ephemeral filesystem**: anything written locally is lost on
-every restart, redeploy, or free-tier spin-down
-(https://render.com/docs/faq, "Why do files saved to my service's filesystem disappear?";
-persistent disks are paid-plan only, https://render.com/docs/disks).
+This is the route this project uses. Both tiers are free as of October 2026:
 
-That would normally rule SQLite out. This repo ships `render.yaml` with `SEED_ON_EMPTY=1`: whenever
-the app boots with an empty database it re-seeds the synthetic demo account and sample decisions.
-Effect: evaluators always land on a working app with demo content, can click around, and even create
-their own account and decisions - which survive until the next restart, then reset. For a grading
-demo this is fine. For real use, it is not.
+- **Render free web services** (`plan: free`, already configured in
+  `render.yaml`): no cost, but the service **spins down after 15 minutes of
+  inactivity** and the next request waits through a cold start. Source:
+  https://render.com/docs/free
+- **Neon free Postgres**: $0/month, 1 GB storage per project, compute scales
+  to zero after 5 minutes idle (first query after idle adds a short wake-up).
+  Source: https://neon.com/pricing
 
-Steps: push the repo to GitHub, in Render choose New > Blueprint and point it at the repo, deploy.
-Afterwards open the URL in an incognito window to confirm it loads (the app's own login page is
-expected). Demo login: demo@quorum.local / demo-password-123 (change `SEED_EMAIL`/`SEED_PASSWORD`
-in render.yaml if you want different demo credentials).
+Do **not** use Render's own free Postgres for this project: Render deletes free
+Postgres instances 30 days after creation (14-day grace), so it is not
+persistent. Source: https://render.com/docs/free
 
-## Option B - Oracle Cloud Always Free VM (real persistence, $0, card needed for identity check)
+### Steps
 
-Oracle's Always Free tier includes ARM VMs that stay free
-(https://www.oracle.com/cloud/free/, https://docs.oracle.com/iaas/Content/FreeTier/freetier.htm).
-Signup asks for a credit/debit card for identity verification. On the VM:
+1. Create a Neon project and copy its `postgres://...` connection string.
+2. Create a Render web service from this repo (the `render.yaml` blueprint is
+   detected automatically) and keep `plan: free`.
+3. In the Render dashboard, set environment variables (never commit these):
+   - `DATABASE_URL` - the Neon connection string
+   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` - from the Google Cloud
+     OAuth client (see README, "Google OAuth setup")
+   - `GOOGLE_REDIRECT_URI` - `https://<your-service>.onrender.com/api/auth/google/callback`
+   - `SEED_ON_EMPTY=1` - seeds synthetic demo members and events only when the
+     events table is empty, so evaluators always see a working app
+   - `ORGANIZER_EMAILS` - comma-separated emails allowed to create events
+4. Add the same callback URL to the OAuth client's authorized redirect URIs in
+   Google Cloud Console.
 
-```bash
+Seed users are synthetic and cannot log in (login requires a real Google
+account on the SST domain); browsing works publicly without login.
+
+## Alternative: Docker
+
+The `Dockerfile` builds a single image (client bundle + API server). Run it
+with `DATABASE_URL` pointed at any reachable Postgres:
+
+```sh
 docker build -t quorum .
-docker run -d --restart unless-stopped -p 80:4000 -v quorum-data:/app/data quorum
+docker run -p 4000:4000 \
+  -e DATABASE_URL=postgres://user:pass@host:5432/quorum \
+  -e GOOGLE_CLIENT_ID=... -e GOOGLE_CLIENT_SECRET=... \
+  -e GOOGLE_REDIRECT_URI=https://your-host/api/auth/google/callback \
+  -e SEED_ON_EMPTY=1 \
+  quorum
 ```
 
-The named volume keeps the SQLite database across restarts and redeploys. Do NOT set SEED_ON_EMPTY
-here unless you want demo data.
+## Not suitable
 
-## Not recommended
+- **Serverless platforms (Netlify/Vercel-style functions)**: the app is a
+  long-lived Express server with session cookies; it is not packaged as
+  serverless functions.
 
-- **Fly.io**: no free tier for new organizations (trial is 2 hours of runtime or 7 days,
-  https://docs.fly.io/about/pricing).
-- **Render free without SEED_ON_EMPTY**: database silently wiped on every spin-down.
-- **Netlify/Vercel-style serverless**: no persistent local filesystem for SQLite.
+## Cost honesty
 
-Whatever you choose, verify in an incognito window afterwards that the URL loads without any
-platform login wall.
-
-
-## Recommended persistent path (researched 2026-10-26)
-
-Render's free web tier keeps an ephemeral filesystem, so the SQLite file resets
-on every redeploy/restart; free web services also spin down after 15 idle
-minutes and free Render Postgres databases EXPIRE 30 days after creation.
-Source: https://render.com/docs/free
-
-Two $0-signup paths:
-
-- **Option A: Render free web service + Neon free Postgres** - no card needed.
-  Neon free is $0/month with 1 GB storage per project and compute that scales
-  to zero when inactive. Source: https://neon.com/pricing
-  Requires migrating the data layer from SQLite to Postgres (prep notes on the
-  `postgres-migration` branch). Caveats: Render free web cold-starts after idle,
-  and Neon free caps apply (1 GB/project) - recheck both pages before relying
-  on them at submission time.
-- **Option B: Oracle Cloud Always Free VM** (Ampere ARM) - keeps the current
-  SQLite code unchanged on a persistent disk; signup asks for a credit/debit
-  card for identity verification. Source: https://www.oracle.com/cloud/free/
-  Caveat: Always Free covers specific shapes/limits - confirm on that page.
-
-Neither is deployed yet - deployment happens only on the project owner's call.
+The Render + Neon route is free under the terms linked above as of October
+2026. Free tiers change; re-check the linked pages before presenting limits.
+Neither tier requires a credit card for signup as of this writing.

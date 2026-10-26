@@ -1,7 +1,9 @@
 # SQLite -> Postgres migration prep (Option A: Render free web + Neon free)
 
-Status: PREP ONLY on this branch. main stays on SQLite until the project owner
-approves the deployment route. No Neon/Render accounts created.
+Status: COMPLETE. The migration landed on this branch and was merged to
+master after the full test suite (17/17) and the browser E2E harness (11/11)
+passed against a real Postgres (embedded-postgres locally). better-sqlite3 is
+removed; the server requires DATABASE_URL.
 
 ## Schema (Postgres dialect)
 

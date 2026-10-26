@@ -1,48 +1,50 @@
-import { db, newId } from '../db.js';
+import { db, newId, withTransaction } from '../db.js';
 import { notFound, badRequest, conflict, forbidden, unprocessable } from '../errors.js';
 import { initialRsvpStatus, promotionsNeeded, validateCapacityEdit } from '../domain/waitlist.js';
 
-export function getEvent(eventId) {
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+// Every function takes an optional query wrapper `q`; inside a transaction the
+// transaction-scoped wrapper is passed so all reads/writes share one client.
+
+export async function getEvent(eventId, q = db) {
+  const event = await q.get('SELECT * FROM events WHERE id = ?', eventId);
   if (!event) throw notFound('Event not found');
   return event;
 }
 
-export function countsFor(eventId) {
-  const going = db.prepare(`SELECT COUNT(*) AS n FROM rsvps WHERE event_id = ? AND status = 'going'`).get(eventId).n;
-  const waitlisted = db.prepare(`SELECT COUNT(*) AS n FROM rsvps WHERE event_id = ? AND status = 'waitlisted'`).get(eventId).n;
+export async function countsFor(eventId, q = db) {
+  const going = (await q.get(`SELECT COUNT(*)::int AS n FROM rsvps WHERE event_id = ? AND status = 'going'`, eventId)).n;
+  const waitlisted = (await q.get(`SELECT COUNT(*)::int AS n FROM rsvps WHERE event_id = ? AND status = 'waitlisted'`, eventId)).n;
   return { going, waitlisted };
 }
 
-export function eventWithCounts(event, userId = null) {
-  const counts = countsFor(event.id);
-  const organizer = db.prepare('SELECT id, display_name, avatar_url FROM users WHERE id = ?').get(event.organizer_id);
+export async function eventWithCounts(event, userId = null, q = db) {
+  const counts = await countsFor(event.id, q);
+  const organizer = await q.get('SELECT id, display_name, avatar_url FROM users WHERE id = ?', event.organizer_id);
   const myRsvp = userId
-    ? db.prepare(`SELECT id, status, position FROM rsvps WHERE event_id = ? AND user_id = ? AND status != 'cancelled'`).get(event.id, userId) || null
+    ? (await q.get(`SELECT id, status, position FROM rsvps WHERE event_id = ? AND user_id = ? AND status != 'cancelled'`, event.id, userId)) || null
     : null;
   let waitlistPosition = null;
   if (myRsvp?.status === 'waitlisted') {
-    waitlistPosition = db.prepare(
-      `SELECT COUNT(*) AS n FROM rsvps WHERE event_id = ? AND status = 'waitlisted' AND position <= ?`
-    ).get(event.id, myRsvp.position).n;
+    waitlistPosition = (await q.get(
+      `SELECT COUNT(*)::int AS n FROM rsvps WHERE event_id = ? AND status = 'waitlisted' AND position <= ?`, event.id, myRsvp.position)).n;
   }
   const spotsLeft = event.capacity === null ? null : Math.max(0, event.capacity - counts.going);
   return { ...event, ...counts, spotsLeft, organizer, myRsvp, waitlistPosition };
 }
 
-export function listEvents({ when, q, userId }) {
+export async function listEvents({ when, q, userId }) {
   const where = [`status = 'published'`];
   const params = [];
-  if (when === 'upcoming') { where.push(`starts_at >= datetime('now')`); }
-  if (when === 'past') { where.push(`starts_at < datetime('now')`); }
-  if (q) { where.push('(title LIKE ? OR description LIKE ? OR location LIKE ?)'); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
+  if (when === 'upcoming') { where.push(`starts_at >= now()`); }
+  if (when === 'past') { where.push(`starts_at < now()`); }
+  if (q) { where.push('(title ILIKE ? OR description ILIKE ? OR location ILIKE ?)'); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
   const order = when === 'past' ? 'DESC' : 'ASC';
-  const rows = db.prepare(`SELECT * FROM events WHERE ${where.join(' AND ')} ORDER BY starts_at ${order} LIMIT 100`).all(...params);
-  return rows.map((e) => eventWithCounts(e, userId));
+  const rows = await db.all(`SELECT * FROM events WHERE ${where.join(' AND ')} ORDER BY starts_at ${order} LIMIT 100`, ...params);
+  return Promise.all(rows.map((e) => eventWithCounts(e, userId)));
 }
 
-export function publishEvent(organizerId, { title, description, location, startsAt, endsAt, capacity }) {
-  if (!Number.isNaN(Date.parse(startsAt)) === false || !Date.parse(startsAt)) throw badRequest('A valid start time is required');
+export async function publishEvent(organizerId, { title, description, location, startsAt, endsAt, capacity }) {
+  if (!Date.parse(startsAt)) throw badRequest('A valid start time is required');
   if (!Date.parse(endsAt)) throw badRequest('A valid end time is required');
   if (Date.parse(endsAt) <= Date.parse(startsAt)) throw badRequest('The event must end after it starts');
   if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) {
@@ -50,123 +52,120 @@ export function publishEvent(organizerId, { title, description, location, starts
   }
   if (Date.parse(startsAt) < Date.now() - 5 * 60 * 1000) throw badRequest('Start time cannot be in the past');
   const id = newId('evt');
-  const toIso = (d) => new Date(d).toISOString().slice(0, 19).replace('T', ' ');
-  db.prepare(
+  await db.run(
     `INSERT INTO events (id, title, description, location, starts_at, ends_at, capacity, organizer_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, title.trim(), (description || '').trim(), (location || '').trim(), toIso(startsAt), toIso(endsAt), capacity, organizerId);
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    id, title.trim(), (description || '').trim(), (location || '').trim(),
+    new Date(startsAt).toISOString(), new Date(endsAt).toISOString(), capacity, organizerId);
   return getEvent(id);
 }
 
+/** Lock the event row so capacity checks serialize per event. */
+const lockEvent = (q, eventId) => q.get('SELECT id FROM events WHERE id = ? FOR UPDATE', eventId);
+
 /** RSVP in one transaction: capacity check and insert are atomic. */
-export function rsvp(eventId, userId) {
-  const event = getEvent(eventId);
+export async function rsvp(eventId, userId) {
+  const event = await getEvent(eventId);
   if (event.status !== 'published') throw conflict('This event has been cancelled');
-  if (Date.parse(event.starts_at.replace(' ', 'T') + 'Z') < Date.now()) throw conflict('This event has already started');
+  if (new Date(event.starts_at).getTime() < Date.now()) throw conflict('This event has already started');
   if (event.organizer_id === userId) throw badRequest('You are the organizer of this event');
 
-  const tx = db.transaction(() => {
-    const existing = db.prepare('SELECT * FROM rsvps WHERE event_id = ? AND user_id = ?').get(eventId, userId);
+  return withTransaction(async (q) => {
+    await lockEvent(q, eventId);
+    const existing = await q.get('SELECT * FROM rsvps WHERE event_id = ? AND user_id = ?', eventId, userId);
     if (existing && existing.status !== 'cancelled') throw conflict(`You are already ${existing.status}`);
-    const { going } = countsFor(eventId);
+    const { going } = await countsFor(eventId, q);
     const status = initialRsvpStatus(going, event.capacity);
     const position = status === 'waitlisted'
-      ? (db.prepare(`SELECT COALESCE(MAX(position), 0) AS m FROM rsvps WHERE event_id = ?`).get(eventId).m + 1)
+      ? ((await q.get(`SELECT COALESCE(MAX(position), 0) AS m FROM rsvps WHERE event_id = ?`, eventId)).m + 1)
       : 0;
     if (existing) {
-      db.prepare(`UPDATE rsvps SET status = ?, position = ?, updated_at = datetime('now') WHERE id = ?`).run(status, position, existing.id);
+      await q.run(`UPDATE rsvps SET status = ?, position = ?, updated_at = now() WHERE id = ?`, status, position, existing.id);
       return { id: existing.id, status, reactivated: true };
     }
     const id = newId('rsvp');
-    db.prepare(`INSERT INTO rsvps (id, event_id, user_id, status, position) VALUES (?, ?, ?, ?, ?)`).run(id, eventId, userId, status, position);
+    await q.run(`INSERT INTO rsvps (id, event_id, user_id, status, position) VALUES (?, ?, ?, ?, ?)`, id, eventId, userId, status, position);
     return { id, status, reactivated: false };
   });
-  return tx();
 }
 
 /** Cancel an RSVP; if a seat opened, promote the waitlist head in the same transaction. */
-export function cancelRsvp(eventId, userId) {
-  const tx = db.transaction(() => {
-    const rsvpRow = db.prepare(`SELECT * FROM rsvps WHERE event_id = ? AND user_id = ? AND status != 'cancelled'`).get(eventId, userId);
+export async function cancelRsvp(eventId, userId) {
+  return withTransaction(async (q) => {
+    await lockEvent(q, eventId);
+    const rsvpRow = await q.get(`SELECT * FROM rsvps WHERE event_id = ? AND user_id = ? AND status != 'cancelled'`, eventId, userId);
     if (!rsvpRow) throw notFound('No active RSVP found');
-    db.prepare(`UPDATE rsvps SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?`).run(rsvpRow.id);
-    let promoted = [];
-    if (rsvpRow.status === 'going') {
-      promoted = applyPromotions(eventId);
-    }
+    await q.run(`UPDATE rsvps SET status = 'cancelled', updated_at = now() WHERE id = ?`, rsvpRow.id);
+    const promoted = rsvpRow.status === 'going' ? await applyPromotions(eventId, q) : [];
     return { cancelled: rsvpRow.id, promoted };
   });
-  return tx();
 }
 
-export function applyPromotions(eventId) {
-  const event = getEvent(eventId);
-  const { going } = countsFor(eventId);
-  const waitlisted = db.prepare(
-    `SELECT id FROM rsvps WHERE event_id = ? AND status = 'waitlisted' ORDER BY position`
-  ).all(eventId);
+export async function applyPromotions(eventId, q = db) {
+  const event = await getEvent(eventId, q);
+  const { going } = await countsFor(eventId, q);
+  const waitlisted = await q.all(
+    `SELECT id FROM rsvps WHERE event_id = ? AND status = 'waitlisted' ORDER BY position`, eventId);
   const { promote } = promotionsNeeded(waitlisted, going, event.capacity);
   for (const id of promote) {
-    db.prepare(`UPDATE rsvps SET status = 'going', position = 0, updated_at = datetime('now') WHERE id = ?`).run(id);
+    await q.run(`UPDATE rsvps SET status = 'going', position = 0, updated_at = now() WHERE id = ?`, id);
   }
   return promote;
 }
 
-export function editEvent(eventId, userId, patch) {
-  const event = getEvent(eventId);
+export async function editEvent(eventId, userId, patch) {
+  const event = await getEvent(eventId);
   if (event.organizer_id !== userId) throw forbidden('Only the organizer can edit this event');
   if (event.status !== 'published') throw conflict('This event has been cancelled');
-  const { going } = countsFor(eventId);
-  const tx = db.transaction(() => {
+  const { going } = await countsFor(eventId);
+  return withTransaction(async (q) => {
+    await lockEvent(q, eventId);
     if (patch.capacity !== undefined) {
       const check = validateCapacityEdit(patch.capacity, going);
       if (!check.ok) throw unprocessable(check.error);
-      db.prepare('UPDATE events SET capacity = ? WHERE id = ?').run(patch.capacity, eventId);
+      await q.run('UPDATE events SET capacity = ? WHERE id = ?', patch.capacity, eventId);
     }
     for (const key of ['title', 'description', 'location']) {
       if (patch[key] !== undefined) {
-        db.prepare(`UPDATE events SET ${key} = ? WHERE id = ?`).run(String(patch[key]).trim(), eventId);
+        await q.run(`UPDATE events SET ${key} = ? WHERE id = ?`, String(patch[key]).trim(), eventId);
       }
     }
-    if (patch.startsAt) db.prepare('UPDATE events SET starts_at = ? WHERE id = ?').run(new Date(patch.startsAt).toISOString().slice(0, 19).replace('T', ' '), eventId);
-    if (patch.endsAt) db.prepare('UPDATE events SET ends_at = ? WHERE id = ?').run(new Date(patch.endsAt).toISOString().slice(0, 19).replace('T', ' '), eventId);
-    const promoted = patch.capacity !== undefined ? applyPromotions(eventId) : [];
+    if (patch.startsAt) await q.run('UPDATE events SET starts_at = ? WHERE id = ?', new Date(patch.startsAt).toISOString(), eventId);
+    if (patch.endsAt) await q.run('UPDATE events SET ends_at = ? WHERE id = ?', new Date(patch.endsAt).toISOString(), eventId);
+    const promoted = patch.capacity !== undefined ? await applyPromotions(eventId, q) : [];
     return { promoted };
   });
-  return tx();
 }
 
-export function cancelEvent(eventId, userId) {
-  const event = getEvent(eventId);
+export async function cancelEvent(eventId, userId) {
+  const event = await getEvent(eventId);
   if (event.organizer_id !== userId) throw forbidden('Only the organizer can cancel this event');
-  const tx = db.transaction(() => {
-    db.prepare(`UPDATE events SET status = 'cancelled' WHERE id = ?`).run(eventId);
-    db.prepare(`UPDATE rsvps SET status = 'cancelled', updated_at = datetime('now') WHERE event_id = ? AND status != 'cancelled'`).run(eventId);
+  await withTransaction(async (q) => {
+    await q.run(`UPDATE events SET status = 'cancelled' WHERE id = ?`, eventId);
+    await q.run(`UPDATE rsvps SET status = 'cancelled', updated_at = now() WHERE event_id = ? AND status != 'cancelled'`, eventId);
   });
-  tx();
 }
 
-export function attendeeList(eventId, userId) {
-  const event = getEvent(eventId);
+export async function attendeeList(eventId, userId) {
+  const event = await getEvent(eventId);
   if (event.organizer_id !== userId) throw forbidden('Only the organizer can view the attendee list');
-  const rows = db.prepare(`
+  return db.all(`
     SELECT r.id, r.status, r.position, r.updated_at, u.display_name, u.email, u.avatar_url
     FROM rsvps r JOIN users u ON u.id = r.user_id
     WHERE r.event_id = ? AND r.status != 'cancelled'
     ORDER BY CASE r.status WHEN 'going' THEN 0 ELSE 1 END, r.position, r.created_at
-  `).all(eventId);
-  return rows;
+  `, eventId);
 }
 
-export function myRsvps(userId) {
-  const rows = db.prepare(`
+export async function myRsvps(userId) {
+  const rows = await db.all(`
     SELECT e.*, r.status AS rsvp_status, r.position, r.updated_at AS rsvp_updated_at
     FROM rsvps r JOIN events e ON e.id = r.event_id
     WHERE r.user_id = ? AND r.status != 'cancelled'
     ORDER BY e.starts_at
-  `).all(userId);
-  return rows.map((e) => {
-    const withCounts = eventWithCounts(e, userId);
+  `, userId);
+  return Promise.all(rows.map(async (e) => {
+    const withCounts = await eventWithCounts(e, userId);
     return { ...withCounts, rsvpStatus: e.rsvp_status, waitlistPosition: withCounts.waitlistPosition };
-  });
+  }));
 }

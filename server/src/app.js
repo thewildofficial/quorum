@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { initDb } from './db.js';
 import { createAuthRouter } from './routes/auth.js';
 import eventRoutes from './routes/events.js';
 import { attachUser } from './middleware/auth.js';
@@ -10,7 +11,8 @@ import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function createApp(deps = {}) {
+export async function createApp(deps = {}) {
+  await initDb();
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '256kb' }));
