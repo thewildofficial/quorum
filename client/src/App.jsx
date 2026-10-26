@@ -12,14 +12,14 @@ function Layout({ children }) {
   return (
     <>
       <header className="topbar">
-        <Link to="/" className="brand">Quo<span>rum</span> <em style={{ fontStyle: 'normal', fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>Reinforce events</em></Link>
+        <Link to="/" className="brand">Quorum <em>Reinforce events</em></Link>
         <nav>
           <NavLink to="/" end>Events</NavLink>
           {user && <NavLink to="/mine">My RSVPs</NavLink>}
           {user?.role === 'organizer' && <NavLink to="/new">+ Create event</NavLink>}
           {user ? (
             <>
-              <span style={{ color: 'var(--muted)', fontSize: 14 }}>{user.displayName}</span>
+              <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{user.displayName}</span>
               <button className="btn small" onClick={async () => { await logout(); navigate('/'); }}>Log out</button>
             </>
           ) : (

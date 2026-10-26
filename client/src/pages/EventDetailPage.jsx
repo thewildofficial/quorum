@@ -75,7 +75,7 @@ export default function EventDetailPage() {
         <h1 style={{ fontSize: 24, margin: 0 }}>{event.title}</h1>
         <SpotsBadge event={event} />
       </div>
-      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+      <p style={{ color: 'var(--ink-2)', marginTop: 0 }}>
         {formatWhen(event.starts_at)} - {formatWhen(event.ends_at)} · {event.location || 'Location TBA'} ·
         organized by {event.organizer?.display_name}
       </p>
@@ -156,7 +156,7 @@ export default function EventDetailPage() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   {attendees.map((a) => (
                     <li key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
-                      <span>{a.display_name} <span style={{ color: 'var(--muted)' }}>({a.email})</span></span>
+                      <span>{a.display_name} <span style={{ color: 'var(--ink-2)' }}>({a.email})</span></span>
                       <span className={`badge ${a.status === 'going' ? 'closed' : 'draft'}`}>{a.status}</span>
                     </li>
                   ))}

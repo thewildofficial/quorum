@@ -6,7 +6,7 @@ export default function LoginPage() {
   if (!loading && user) return <Navigate to="/" replace />;
   return (
     <div className="auth-wrap">
-      <div className="brand-big">Quo<span style={{ color: 'var(--accent)' }}>rum</span></div>
+      <div className="brand-big">Quorum</div>
       <div className="tag">Reinforce events - talks, workshops, build nights.</div>
       <div className="card" style={{ textAlign: 'center' }}>
         <h2>Member sign-in</h2>
@@ -17,7 +17,7 @@ export default function LoginPage() {
         <a className="btn primary" href="/api/auth/google" style={{ justifyContent: 'center', width: '100%' }}>
           Continue with Google
         </a>
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 14, marginBottom: 0 }}>
+        <p style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 14, marginBottom: 0 }}>
           You can browse events without signing in. You need an account to RSVP.
         </p>
       </div>
