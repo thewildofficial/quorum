@@ -153,3 +153,14 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.0
 .center-note { text-align: center; color: var(--ink-3); font-size: 14px; }
 
 .matrix-wrap { overflow-x: auto; }
+
+@media (max-width: 640px) {
+  .brand em { display: none; }
+  .topbar { padding: 0 14px; height: auto; min-height: 56px; flex-wrap: wrap; row-gap: 6px; padding-top: 8px; padding-bottom: 8px; }
+  .topbar nav { gap: 12px; flex-wrap: wrap; }
+  .topbar nav a { font-size: 13px; }
+  .topbar nav span { display: none; } /* logged-in name yields to the nav on phones */
+  .btn { padding: 7px 12px; }
+  .page { padding: 22px 14px 56px; }
+  .page > h1 { font-size: 27px; }
+}

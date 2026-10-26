@@ -44,3 +44,22 @@ here unless you want demo data.
 
 Whatever you choose, verify in an incognito window afterwards that the URL loads without any
 platform login wall.
+
+
+## Recommended persistent path (researched 2026-10-26)
+
+Render's free web tier keeps an ephemeral filesystem (SQLite resets on every
+redeploy/restart - render.com/docs, "Free instance limitations"), so the
+SQLite-in-container route is demo-only. For a real deployment that costs $0:
+
+- **Option A: Render free web service + Neon free Postgres** - no card needed.
+  Neon free is $0/month with 1 GB storage per project and 100 CU-hours
+  (neon.com pricing). Requires migrating the data layer from SQLite to
+  Postgres. Render free web sleeps after inactivity (cold start on first hit).
+- **Option B: Oracle Cloud Always Free VM** (Ampere ARM, up to 4 cores/24 GB) -
+  keeps the current SQLite code unchanged on a persistent disk; signup requires
+  a credit/debit card for identity (oracle.com/cloud/free). No charges under
+  Always Free resources.
+
+Both keep the app's own code identical apart from Option A's database layer.
+Neither is deployed yet - deployment happens only on the project owner's call.
