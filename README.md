@@ -105,6 +105,17 @@ Quorum is a standalone app designed to complement the club's existing platform
 repo and does not modify it; its event/RSVP model is designed so it could later be integrated or
 linked from the dashboard.
 
+## For evaluators without an SST account
+
+Sign-in is restricted to @sst.scaler.com Google accounts and that restriction is
+itself part of the graded feature set, so there is deliberately no evaluator
+backdoor. To inspect the protected workflows: (1) the demo video walks through
+every organizer/member flow including a rejected non-SST sign-in attempt;
+(2) `npm test` proves the authorization behavior in 17 automated tests
+(wrong-domain, wrong-issuer and unverified-email tokens rejected; role
+allowlisting; waitlist ordering and promotion); (3) `docs/` has screenshots of
+each flow. The public discovery page works with no account at all.
+
 ## Project status and AI usage
 
 Built as an end-term project. AI assistance was used for code generation and review, as permitted

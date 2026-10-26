@@ -5,7 +5,9 @@
 2. **(30s) Discovery** - open the events page without logging in: search, upcoming/past, badges
    showing spots left vs waitlist.
 3. **(30s) Sign-in** - click Continue with Google, show that the account chooser is restricted to
-   @sst.scaler.com, land back logged in.
+   @sst.scaler.com, land back logged in. If you have a personal Gmail handy,
+   show the server rejecting it ("Sign-in is restricted to @sst.scaler.com
+   Google accounts") - that rejection IS the feature.
 4. **(40s) RSVP + waitlist** - RSVP to an open event (confirmed), then open a full event and join
    the waitlist; show the exact position.
 5. **(40s) The interesting part** - in a second account, cancel a "going" RSVP on the full event;
