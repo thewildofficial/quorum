@@ -1,6 +1,6 @@
 # One-click Render blueprint. Free web service tier works for DEMO/EVALUATION ONLY:
 # Render's free filesystem is ephemeral, so the SQLite file resets on restart/redeploy.
-# SEED_ON_EMPTY=1 re-creates the synthetic demo account and sample decisions on every
+# SEED_ON_EMPTY=1 re-creates the synthetic demo members and events on every
 # cold start, so evaluators always see a working app. See DEPLOYMENT.md.
 services:
   - type: web
