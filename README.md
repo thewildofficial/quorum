@@ -28,7 +28,7 @@ limits; RSVPs overflow onto an automatic waitlist.
 
 ## Tech stack
 
-React 18 + Vite client; Node 22 + Express API; SQLite (better-sqlite3) with WAL and foreign keys;
+React 18 + Vite client; Node 22 + Express API; Postgres (`pg`) with transactional seat counting;
 session-cookie auth after Google OAuth (no third-party auth SDK); hand-built CSS. No external
 services besides Google sign-in; no API keys to leak beyond the OAuth client configuration.
 
@@ -44,7 +44,7 @@ client/src/pages/                Discovery, event detail, My RSVPs, create event
 
 Engineering decisions worth a look:
 
-- **Race-safe RSVP**: seat counting and insertion happen inside one SQLite transaction, so a
+- **Race-safe RSVP**: seat counting (`SELECT ... FOR UPDATE` row lock) and insertion happen inside one Postgres transaction, so a
   last seat cannot be sold twice.
 - **Promotion in the same transaction** as the cancellation/capacity edit that triggers it -
   the waitlist can never be skipped by a concurrent RSVP.
@@ -87,8 +87,9 @@ See `.env.example`. Secrets stay in the environment; nothing is committed.
 
 ## Deployment
 
-Single-process app with embedded SQLite - see `DEPLOYMENT.md` for the free-tier options and the
-SQLite persistence caveat, and `render.yaml`/`Dockerfile` for one-command routes. Deployment is a
+Single Node process backed by Postgres (`DATABASE_URL`) - see `DEPLOYMENT.md` for the free
+persistent route (Render free web + Neon free Postgres) and its caveats, plus `render.yaml`/`Dockerfile`
+for one-command routes. Deployment is a
 deliberate choice the project owner makes; nothing here deploys itself.
 
 ## Design

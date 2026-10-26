@@ -19,7 +19,7 @@ export function Empty({ title, children }) {
   );
 }
 export function formatWhen(iso) {
-  const d = new Date(iso.replace(' ', 'T') + 'Z');
+  const d = new Date(typeof iso === 'string' && !iso.includes('T') ? iso.replace(' ', 'T') + 'Z' : iso);
   return d.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 export function SpotsBadge({ event }) {

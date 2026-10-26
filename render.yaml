@@ -1,13 +1,13 @@
-# One-click Render blueprint. Free web service tier works for DEMO/EVALUATION ONLY:
-# Render's free filesystem is ephemeral, so the SQLite file resets on restart/redeploy.
-# SEED_ON_EMPTY=1 re-creates the synthetic demo members and events on every
-# cold start, so evaluators always see a working app. See DEPLOYMENT.md.
+# One-click Render blueprint (free web service tier).
+# Data lives in Postgres (DATABASE_URL) - a free Neon project gives persistence.
+# SEED_ON_EMPTY=1 inserts synthetic demo members and events only when the
+# events table is empty, so evaluators always see a working app. See DEPLOYMENT.md.
 services:
   - type: web
     name: quorum
     runtime: node
     plan: free
-    buildCommand: npm install --no-audit --no-fund && npm --prefix client install --no-audit --no-fund && npm --prefix client run build
+    buildCommand: npm --prefix server install --omit=dev --no-audit --no-fund && npm --prefix client install --no-audit --no-fund && npm --prefix client run build
     startCommand: node server/src/index.js
     envVars:
       - key: NODE_ENV
@@ -15,4 +15,5 @@ services:
       - key: SEED_ON_EMPTY
         value: "1"
       # Quorum seed users cannot log in (Google OAuth required); browsing works publicly.
-      # Set GOOGLE_CLIENT_ID/SECRET in the Render dashboard - never commit them.
+      # Set DATABASE_URL (Neon connection string) and GOOGLE_CLIENT_ID/SECRET
+      # in the Render dashboard - never commit them.

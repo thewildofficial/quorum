@@ -67,7 +67,7 @@ export default function EventDetailPage() {
     await api.post(`/api/events/${id}/cancel`);
   });
 
-  const started = Date.parse(event.starts_at.replace(' ', 'T') + 'Z') < Date.now();
+  const started = new Date(event.starts_at).getTime() < Date.now();
 
   return (
     <>

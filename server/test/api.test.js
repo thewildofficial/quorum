@@ -7,10 +7,21 @@ import os from 'node:os';
 import path from 'node:path';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quorum-test-'));
-process.env.DATABASE_PATH = path.join(tmp, 'test.db');
 process.env.NODE_ENV = 'test';
 process.env.GOOGLE_CLIENT_ID = 'test-client-id';
 process.env.ORGANIZER_EMAILS = 'prof@sst.scaler.com';
+
+// Real Postgres for integration tests: embedded-postgres downloads and runs a
+// throwaway server locally so tests exercise the production database dialect.
+const { default: EmbeddedPostgres } = await import('embedded-postgres');
+const epg = new EmbeddedPostgres({
+  databaseDir: path.join(tmp, 'pg'),
+  user: 'quorum', password: 'quorum', port: 5544, persistent: false,
+});
+await epg.initialise();
+await epg.start();
+await epg.createDatabase('quorum_test');
+process.env.DATABASE_URL = 'postgres://quorum:quorum@localhost:5544/quorum_test';
 
 const { createApp } = await import('../src/app.js');
 
@@ -62,11 +73,17 @@ async function api(email, method, url, body) {
 }
 
 before(async () => {
-  server = createApp({ verifyIdToken: fakeVerify, exchangeCode: fakeExchange }).listen(0);
+  server = (await createApp({ verifyIdToken: fakeVerify, exchangeCode: fakeExchange })).listen(0);
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => { server.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => {
+  server.close();
+  const { pool } = await import('../src/db.js');
+  await pool.end();
+  await epg.stop();
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
 
 const future = (h) => new Date(Date.now() + h * 3600000).toISOString();
 let eventId;
