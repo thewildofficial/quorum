@@ -4,6 +4,16 @@
 import { db, initDb, newId } from './db.js';
 import { initialRsvpStatus } from './domain/waitlist.js';
 
+// Demo events are at SST in Bengaluru (IST, UTC+5:30) regardless of the host's
+// timezone: anchor the calendar date in the IST frame, then return the UTC
+// instant matching the intended IST wall-clock hour.
+export const IST_OFFSET_MS = 5.5 * 3600000;
+export function seedStartInstant(inDays, hour, now = Date.now()) {
+  const d = new Date(now + inDays * 86400000 + IST_OFFSET_MS);
+  d.setUTCHours(0, 0, 0, 0);
+  return new Date(d.getTime() + hour * 3600000 - IST_OFFSET_MS);
+}
+
 export async function seedIfEmpty() {
   const count = (await db.get('SELECT COUNT(*)::int AS n FROM users')).n;
   if (count > 0) {
@@ -26,8 +36,7 @@ export async function seedIfEmpty() {
 
   async function addEvent({ title, description, location, inDays, hour, durationH, capacity, filled = 0 }) {
     const id = newId('evt');
-    const start = new Date(Date.now() + inDays * 86400000);
-    start.setHours(hour, 0, 0, 0);
+    const start = seedStartInstant(inDays, hour);
     const end = new Date(start.getTime() + durationH * 3600000);
     await db.run(
       `INSERT INTO events (id, title, description, location, starts_at, ends_at, capacity, organizer_id)

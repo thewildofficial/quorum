@@ -24,3 +24,16 @@ test('validateCapacityEdit: cannot shrink below going count', () => {
   assert.equal(validateCapacityEdit(0, 0).ok, false);
   assert.equal(validateCapacityEdit(2.5, 0).ok, false);
 });
+
+// Regression: seeded event times must land on the intended IST wall clock even
+// when the host runs in UTC (Render). A naive setHours() shifted seeds +5:30.
+test('seedStartInstant stores the UTC instant for the intended IST time', async () => {
+  const { seedStartInstant } = await import('../src/seed.js');
+  // 2026-10-26 05:30Z (= 11:00 IST); event 5 days out at 16:00 IST = 2026-10-31 10:30Z
+  const s = seedStartInstant(5, 16, Date.UTC(2026, 9, 26, 5, 30));
+  assert.equal(s.toISOString(), '2026-10-31T10:30:00.000Z');
+  assert.equal(
+    s.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: false }),
+    '16:00',
+  );
+});
