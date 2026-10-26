@@ -48,18 +48,23 @@ platform login wall.
 
 ## Recommended persistent path (researched 2026-10-26)
 
-Render's free web tier keeps an ephemeral filesystem (SQLite resets on every
-redeploy/restart - render.com/docs, "Free instance limitations"), so the
-SQLite-in-container route is demo-only. For a real deployment that costs $0:
+Render's free web tier keeps an ephemeral filesystem, so the SQLite file resets
+on every redeploy/restart; free web services also spin down after 15 idle
+minutes and free Render Postgres databases EXPIRE 30 days after creation.
+Source: https://render.com/docs/free
+
+Two $0-signup paths:
 
 - **Option A: Render free web service + Neon free Postgres** - no card needed.
-  Neon free is $0/month with 1 GB storage per project and 100 CU-hours
-  (neon.com pricing). Requires migrating the data layer from SQLite to
-  Postgres. Render free web sleeps after inactivity (cold start on first hit).
-- **Option B: Oracle Cloud Always Free VM** (Ampere ARM, up to 4 cores/24 GB) -
-  keeps the current SQLite code unchanged on a persistent disk; signup requires
-  a credit/debit card for identity (oracle.com/cloud/free). No charges under
-  Always Free resources.
+  Neon free is $0/month with 1 GB storage per project and compute that scales
+  to zero when inactive. Source: https://neon.com/pricing
+  Requires migrating the data layer from SQLite to Postgres (prep notes on the
+  `postgres-migration` branch). Caveats: Render free web cold-starts after idle,
+  and Neon free caps apply (1 GB/project) - recheck both pages before relying
+  on them at submission time.
+- **Option B: Oracle Cloud Always Free VM** (Ampere ARM) - keeps the current
+  SQLite code unchanged on a persistent disk; signup asks for a credit/debit
+  card for identity verification. Source: https://www.oracle.com/cloud/free/
+  Caveat: Always Free covers specific shapes/limits - confirm on that page.
 
-Both keep the app's own code identical apart from Option A's database layer.
 Neither is deployed yet - deployment happens only on the project owner's call.
