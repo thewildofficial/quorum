@@ -291,3 +291,11 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.0
   .ev-cover { width: 64px; height: 64px; }
   .ev-row-side .arrow { display: none; }
 }
+
+@media (max-width: 640px) {
+  .ev-row { gap: 12px; padding: 10px; }
+  .ev-title { font-size: 15.5px; line-height: 1.3; }
+  .ev-time { font-size: 12px; }
+  .ev-meta { font-size: 12.5px; gap: 5px; margin-top: 4px; }
+  .tl-day .dow { font-size: 19px; }
+}
