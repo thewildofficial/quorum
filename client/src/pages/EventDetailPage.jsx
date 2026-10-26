@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../AuthContext.jsx';
-import { Spinner, ErrorBox, Empty, formatWhen, SpotsBadge } from '../components/common.jsx';
+import { Spinner, ErrorBox, Empty, formatWhen, SpotsBadge, coverVars, CalendarIcon, PinIcon, UsersIcon, ClockIcon } from '../components/common.jsx';
 
 export default function EventDetailPage() {
   const { id } = useParams();
@@ -71,24 +71,49 @@ export default function EventDetailPage() {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-        <h1 style={{ fontSize: 24, margin: 0 }}>{event.title}</h1>
+      <div className="ev-hero cover" style={coverVars(event.id)} />
+
+      <div className="detail-head">
+        <h1>{event.title}</h1>
         <SpotsBadge event={event} />
       </div>
-      <p style={{ color: 'var(--ink-2)', marginTop: 0 }}>
-        {formatWhen(event.starts_at)} - {formatWhen(event.ends_at)} · {event.location || 'Location TBA'} ·
-        organized by {event.organizer?.display_name}
-      </p>
+
+      <div className="info-list">
+        <div className="info-row">
+          <div className="icon-chip"><CalendarIcon size={17} /></div>
+          <div>
+            <div className="k">{formatWhen(event.starts_at)}</div>
+            <div className="v">until {formatWhen(event.ends_at)}</div>
+          </div>
+        </div>
+        <div className="info-row">
+          <div className="icon-chip"><PinIcon size={17} /></div>
+          <div>
+            <div className="k">{event.location || 'Location TBA'}</div>
+            <div className="v">Reinforce, Scaler School of Technology</div>
+          </div>
+        </div>
+        <div className="info-row host-row">
+          <div className="avatar">{(event.organizer?.display_name || 'R')[0].toUpperCase()}</div>
+          <div>
+            <div className="k">Hosted by {event.organizer?.display_name}</div>
+            <div className="v">{event.going} going{event.waitlisted > 0 ? ` · ${event.waitlisted} on the waitlist` : ''}</div>
+          </div>
+        </div>
+      </div>
+
       <ErrorBox error={error} />
       {notice && <div className="alert success">{notice}</div>}
 
-      <div className="grid cols-2">
-        <div className="card">
-          <h2>About</h2>
-          {event.description
-            ? <p style={{ whiteSpace: 'pre-wrap', marginTop: 0 }}>{event.description}</p>
-            : <p className="sub">No description yet.</p>}
-          <div className="grid cols-3" style={{ marginTop: 14 }}>
+      <div className="detail-grid">
+        <div>
+          <div className="card">
+            <h2>About</h2>
+            {event.description
+              ? <p className="about-body">{event.description}</p>
+              : <p className="sub">No description yet.</p>}
+          </div>
+          <div className="stat-row">
             <div className="stat"><div className="num">{event.going}</div><div className="lbl">going</div></div>
             <div className="stat"><div className="num">{event.capacity === null ? '∞' : event.capacity}</div><div className="lbl">capacity</div></div>
             <div className="stat"><div className="num">{event.waitlisted}</div><div className="lbl">waitlisted</div></div>
@@ -96,12 +121,12 @@ export default function EventDetailPage() {
         </div>
 
         <div>
-          <div className="card">
-            <h2>Your spot</h2>
+          <div className="card reg-card">
+            <h3>Registration</h3>
             {!user ? (
               <>
                 <p className="sub">Sign in with your SST Google account to RSVP.</p>
-                <Link className="btn primary" to="/login">Log in to RSVP</Link>
+                <Link className="btn primary block" to="/login">Log in to RSVP</Link>
               </>
             ) : event.status === 'cancelled' ? (
               <p className="sub">This event was cancelled.</p>
@@ -114,7 +139,7 @@ export default function EventDetailPage() {
                     You are <b>#{event.waitlistPosition}</b> on the waitlist. Promotion is automatic when a seat opens.
                   </div>
                 )}
-                <button className="btn danger" onClick={cancelRsvp} disabled={busy}>Cancel my RSVP</button>
+                <button className="btn danger block" onClick={cancelRsvp} disabled={busy}>Cancel my RSVP</button>
               </>
             ) : started ? (
               <p className="sub">This event has already started.</p>
@@ -129,7 +154,7 @@ export default function EventDetailPage() {
                       ? `${event.spotsLeft} of ${event.capacity} spots left.`
                       : 'Full right now - you would join the waitlist.'}
                 </p>
-                <button className="btn primary" onClick={rsvp} disabled={busy}>
+                <button className="btn primary block" onClick={rsvp} disabled={busy}>
                   {event.capacity !== null && event.spotsLeft === 0 ? 'Join waitlist' : 'RSVP'}
                 </button>
               </>
@@ -138,29 +163,29 @@ export default function EventDetailPage() {
 
           {isOrganizer && (
             <div className="card">
-              <h2>Organizer</h2>
+              <h3>Organizer</h3>
               <div className="field">
                 <label htmlFor="cap">Capacity (empty = unlimited)</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input id="cap" type="number" min="1" step="1" value={capEdit} onChange={(e) => setCapEdit(e.target.value)} style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 8 }} />
+                  <input id="cap" type="number" min="1" step="1" value={capEdit} onChange={(e) => setCapEdit(e.target.value)} style={{ flex: 1 }} />
                   <button className="btn" onClick={saveCapacity} disabled={busy}>Save</button>
                 </div>
                 <div className="hint">Raising capacity promotes the waitlist automatically. You cannot go below {event.going} (current going count).</div>
               </div>
               <button className="btn danger" onClick={cancelEvent} disabled={busy || event.status === 'cancelled'}>Cancel event</button>
 
-              <h3 style={{ marginTop: 18 }}>Attendees</h3>
+              <h3 style={{ marginTop: 20 }}>Attendees</h3>
               {!attendees ? <p className="sub">Loading...</p> : attendees.length === 0 ? (
                 <Empty title="No RSVPs yet">Share the link with the club.</Empty>
               ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <div>
                   {attendees.map((a) => (
-                    <li key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
-                      <span>{a.display_name} <span style={{ color: 'var(--ink-2)' }}>({a.email})</span></span>
+                    <div key={a.id} className="attendee-row">
+                      <span>{a.display_name} <span className="email">({a.email})</span></span>
                       <span className={`badge ${a.status === 'going' ? 'closed' : 'draft'}`}>{a.status}</span>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           )}

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
-import { Spinner, ErrorBox, Empty } from '../components/common.jsx';
+import { Spinner, ErrorBox, Empty, dayParts, SearchIcon } from '../components/common.jsx';
 import EventCard from '../components/EventCard.jsx';
 
 const TABS = [
@@ -33,15 +33,36 @@ export default function EventsPage() {
     return () => clearTimeout(t);
   }, [load]);
 
+  const groups = useMemo(() => {
+    const out = [];
+    for (const e of events ?? []) {
+      const day = dayParts(e.starts_at);
+      const last = out[out.length - 1];
+      if (last && last.key === day.key) last.events.push(e);
+      else out.push({ key: day.key, day, events: [e] });
+    }
+    return out;
+  }, [events]);
+
   return (
     <>
+      <header className="discover-head">
+        <h1>Events</h1>
+        <p>Reinforce talks, workshops and build nights - open to every member.</p>
+      </header>
       <div className="toolbar">
-        <input type="search" placeholder="Search events..." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search events" />
-        {TABS.map((t) => (
-          <button key={t.key} className={`btn small ${when === t.key ? 'primary' : ''}`} onClick={() => setWhen(t.key)}>
-            {t.label}
-          </button>
-        ))}
+        <div className="seg" role="tablist" aria-label="Filter events">
+          {TABS.map((t) => (
+            <button key={t.key} role="tab" aria-selected={when === t.key}
+              className={when === t.key ? 'on' : ''} onClick={() => setWhen(t.key)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="search">
+          <SearchIcon size={15} />
+          <input type="search" placeholder="Search events..." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search events" />
+        </div>
       </div>
       <ErrorBox error={error} onRetry={load} />
       {loading && !events ? <Spinner /> : !events?.length ? (
@@ -49,7 +70,16 @@ export default function EventsPage() {
           {q ? 'Try a different search.' : when === 'past' ? 'No past events yet.' : 'Nothing scheduled right now - check back soon.'}
         </Empty>
       ) : (
-        events.map((e) => <EventCard key={e.id} event={e} />)
+        groups.map((g) => (
+          <section key={g.key}>
+            <div className="tl-day">
+              {g.day.rel
+                ? <><span className="dow rel">{g.day.rel}</span><span className="date">{g.day.dow}, {g.day.label}</span></>
+                : <><span className="dow">{g.day.dow}</span><span className="date">{g.day.label}</span></>}
+            </div>
+            {g.events.map((e) => <EventCard key={e.id} event={e} />)}
+          </section>
+        ))
       )}
     </>
   );

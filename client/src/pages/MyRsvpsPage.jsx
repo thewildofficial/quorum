@@ -23,7 +23,10 @@ export default function MyRsvpsPage() {
 
   return (
     <>
-      <h1 style={{ fontSize: 22, margin: '0 0 16px' }}>My RSVPs</h1>
+      <header className="discover-head">
+        <h1>My RSVPs</h1>
+        <p>Your confirmed spots and waitlist positions.</p>
+      </header>
       <ErrorBox error={error} onRetry={load} />
       {!events ? <Spinner /> : events.length === 0 ? (
         <Empty title="Nothing yet">RSVP to an event and it shows up here.</Empty>

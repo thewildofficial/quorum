@@ -37,7 +37,7 @@ export default function NewEventPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 640 }}>
+    <div className="card" style={{ maxWidth: 640, margin: '0 auto' }}>
       <h2>Create event</h2>
       <p className="sub">Published events are visible to anyone with the link; RSVPs need an SST account.</p>
       <ErrorBox error={error} />
@@ -69,7 +69,7 @@ export default function NewEventPage() {
           <input id="c" type="number" min="1" step="1" value={form.capacity} onChange={set('capacity')} placeholder="Leave empty for unlimited" />
           <div className="hint">When full, new RSVPs join a waitlist and get promoted automatically as seats open.</div>
         </div>
-        <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Publishing...' : 'Publish event'}</button>
+        <button className="btn primary block" type="submit" disabled={busy}>{busy ? 'Publishing...' : 'Publish event'}</button>
       </form>
     </div>
   );
