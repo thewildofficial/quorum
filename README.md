@@ -4,6 +4,8 @@
 
 **Live deployment: https://quorum-wu5r.onrender.com** (Render free tier - the first load after
 ~15 idle minutes can take up to a minute while the instance wakes).
+
+**Demo video (2:20):** https://drive.google.com/file/d/1YzOMGEVIJDuMpvK1gXPTvrcCwavPRjkU/view?usp=sharing
 Members discover talks, workshops and build nights; organizers publish events with capacity
 limits; RSVPs overflow onto an automatic waitlist.
 
